@@ -1,0 +1,3 @@
+- this is a rule to refer to when writing code in this project 
+- write jsdoc for every chunk of code, making it clear why and what the code is implemented/implementing 
+- for every new implementation, make sure all the past tests are passing too. 
