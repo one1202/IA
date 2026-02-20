@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import styles from "./page.module.css";
+import { convert } from "@/lib/convert";
 
+/** Sample input to preload the editor with a predictable demo. */
 const SAMPLE_JAVA = `public class Main {
   public static void main(String[] args) {
     int sum = 0;
@@ -13,6 +15,7 @@ const SAMPLE_JAVA = `public class Main {
   }
 }`;
 
+/** Matching sample output to keep the UI populated before conversion. */
 const pseudoFromSample = [
   "PROGRAM main",
   "  DECLARE sum ← 0",
@@ -23,31 +26,24 @@ const pseudoFromSample = [
   "END PROGRAM",
 ].join("\n");
 
+/** Main converter page UI. */
 export default function Home() {
   const [javaInput, setJavaInput] = useState<string>(SAMPLE_JAVA);
   const [pseudocode, setPseudocode] = useState<string>(pseudoFromSample);
   const [status, setStatus] = useState<"idle" | "working">("idle");
 
-  const handleConvert = async () => {
+  /** Convert input to pseudocode using the in-browser pipeline. */
+  const handleConvert = () => {
     setStatus("working");
     try {
-      const response = await fetch("/api/convert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: javaInput }),
-      });
-      const data = await response.json();
-      if (data?.errors?.length) {
-        const formatted = data.errors
-          .map((e: { stage: string; message: string; line?: number; column?: number }) => {
-            const line = e.line ?? 1;
-            const column = e.column ?? 1;
-            return `[${e.stage}] ${e.message} (${line}:${column})`;
-          })
+      const result = convert(javaInput, { style: "sc-02" });
+      if (result.errors?.length) {
+        const formatted = result.errors
+          .map((e) => `[${e.stage}] ${e.message} (${e.line}:${e.column})`)
           .join("\n");
         setPseudocode(formatted);
       } else {
-        setPseudocode(data?.pseudocode || "");
+        setPseudocode(result.pseudocode || "");
       }
     } catch (error) {
       setPseudocode("Error: failed to convert input.");
@@ -58,47 +54,47 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
-        <div className={styles.topBar}>
-          <div className={styles.logoMark}>PseudoCraft</div>
-          <div className={styles.topActions}>
-            <div className={styles.actionItem}>
-              <button type="button" className={styles.topButton}>
-                About us
-              </button>
-              <div className={styles.dropdown}>
-                <p className={styles.dropdownTitle}>About us</p>
-                <p className={styles.dropdownText}>
-                  We build teaching tools bridging Java fundamentals to IB-style
-                  pseudocode. Clarity first: normalization, tokenization,
-                  iterative AST building, and readable output.
-                </p>
-              </div>
+      <div className={styles.topBar}>
+        <div className={styles.logoMark}>PseudoCraft</div>
+        <div className={styles.topActions}>
+          <div className={styles.actionItem}>
+            <button type="button" className={styles.topButton}>
+              About us
+            </button>
+            <div className={styles.dropdown}>
+              <p className={styles.dropdownTitle}>About us</p>
+              <p className={styles.dropdownText}>
+                We build teaching tools bridging Java fundamentals to IB-style
+                pseudocode. Clarity first: normalization, tokenization,
+                iterative AST building, and readable output.
+              </p>
             </div>
-            <div className={styles.actionItem}>
-              <button type="button" className={styles.topButton}>
-                Product information
-              </button>
-              <div className={styles.dropdown}>
-                <p className={styles.dropdownTitle}>Product information</p>
-                <p className={styles.dropdownText}>
-                  Paste Java, hit convert, and get structured pseudocode. Current
-                  build is mocked; the full pipeline will enforce scope, validate
-                  syntax, and emit IB-formatted output via pre-order traversal.
-                </p>
-              </div>
+          </div>
+          <div className={styles.actionItem}>
+            <button type="button" className={styles.topButton}>
+              Product information
+            </button>
+            <div className={styles.dropdown}>
+              <p className={styles.dropdownTitle}>Product information</p>
+              <p className={styles.dropdownText}>
+                Paste Java, hit convert, and get structured pseudocode. The
+                pipeline normalizes input, tokenizes it, constructs an AST, and
+                emits IB-formatted output via pre-order traversal.
+              </p>
             </div>
           </div>
         </div>
-        <main className={styles.shell}>
-          <header className={styles.header}>
-            <div>
-              <p className={styles.kicker}>IB pseudocode lab</p>
-              <h1>PseudoCraft</h1>
-            </div>
-            <div className={styles.status}>
-              <span className={status === "working" ? styles.pulse : ""} />
-              <p>{status === "working" ? "Converting…" : "Ready"}</p>
-            </div>
+      </div>
+      <main className={styles.shell}>
+        <header className={styles.header}>
+          <div>
+            <p className={styles.kicker}>IB pseudocode lab</p>
+            <h1>PseudoCraft</h1>
+          </div>
+          <div className={styles.status}>
+            <span className={status === "working" ? styles.pulse : ""} />
+            <p>{status === "working" ? "Converting…" : "Ready"}</p>
+          </div>
         </header>
 
         <section className={styles.grid}>
@@ -130,7 +126,7 @@ export default function Home() {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <p className={styles.label}>Pseudocode output</p>
-              <p className={styles.hint}>Pre-order traversal view (mocked).</p>
+              <p className={styles.hint}>Pre-order traversal output.</p>
             </div>
             <textarea
               aria-label="Pseudocode output"

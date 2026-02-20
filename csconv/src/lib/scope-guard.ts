@@ -1,17 +1,9 @@
-/** @file Scope guard for unsupported Java constructs. */
-const { err } = require("./errors.cjs");
+import { err, ConvertError } from "./errors";
 
 /**
  * Reject out-of-scope Java constructs before parsing.
- * @param {string} source
- * @returns {object|null}
  */
-/**
- * Reject out-of-scope Java constructs before parsing.
- * @param {string} source
- * @returns {object|null}
- */
-function scopeGuard(source) {
+export function scopeGuard(source: string): ConvertError | null {
   const banned = [
     { re: /\binterface\b/, why: "Interfaces are out of scope." },
     { re: /\bimplements\b/, why: "Interfaces are out of scope." },
@@ -21,7 +13,6 @@ function scopeGuard(source) {
     { re: /\bcatch\b/, why: "Exceptions are out of scope." },
     { re: /\bswitch\b/, why: "Switch is out of scope." },
     { re: /\bgeneric\s*</, why: "Generics are out of scope." },
-    { re: /\[\s*\[/, why: "2D arrays are out of scope." },
     { re: /\bclass\b.*\bclass\b/, why: "Multiple classes are out of scope." },
   ];
   for (const rule of banned) {
@@ -31,5 +22,3 @@ function scopeGuard(source) {
   }
   return null;
 }
-
-module.exports = { scopeGuard };

@@ -1,31 +1,29 @@
-/** @file Recursive-descent parser for the Java subset. */
-const { err } = require("./errors.cjs");
+import { err } from "./errors";
+import type { Token } from "./tokenize";
+
+export type AstNode = {
+  type: string;
+  [key: string]: any;
+};
 
 /**
- * Recursive-descent parser for a restricted Java subset.
- * Produces a minimal AST for pseudocode conversion.
- */
-/**
- * Parser for statements and expressions used in the subset.
+ * Recursive-descent parser for the Java subset.
  */
 class Parser {
-  constructor(tokens) {
+  private tokens: Token[];
+  private pos = 0;
+
+  constructor(tokens: Token[]) {
     this.tokens = tokens;
-    this.pos = 0;
   }
 
-  /** @returns {object} current token */
-  current() {
+  /** @returns current token */
+  current(): Token {
     return this.tokens[this.pos];
   }
 
-  /**
-   * Consume token if it matches type/value.
-   * @param {string} type
-   * @param {string} [value]
-   * @returns {object|false}
-   */
-  match(type, value) {
+  /** Consume token if it matches type/value. */
+  match(type: string, value?: string): Token | false {
     const tok = this.current();
     if (!tok) return false;
     if (tok.type !== type) return false;
@@ -34,14 +32,8 @@ class Parser {
     return tok;
   }
 
-  /**
-   * Expect token and throw structured parse error when missing.
-   * @param {string} type
-   * @param {string} [value]
-   * @param {string} [message]
-   * @returns {object}
-   */
-  expect(type, value, message) {
+  /** Expect token and throw structured parse error when missing. */
+  expect(type: string, value?: string, message?: string): Token {
     const tok = this.match(type, value);
     if (!tok) {
       const cur = this.current() || { line: 0, col: 0 };
@@ -50,12 +42,8 @@ class Parser {
     return tok;
   }
 
-  /**
-   * Parse top-level program, skipping class/main wrappers when present.
-   * @returns {object}
-   */
-  parseProgram() {
-    // Skip leading modifiers before a class
+  /** Parse top-level program, skipping class/main wrappers when present. */
+  parseProgram(): AstNode {
     while (
       this.current().type === "keyword" &&
       (this.current().value === "public" || this.current().value === "static")
@@ -67,17 +55,20 @@ class Parser {
       this.pos += 1;
     }
 
-    // If a class wrapper exists, skip until first '{'
     if (this.match("keyword", "class")) {
       while (!this.match("brace", "{")) {
         if (this.current().type === "eof") {
-          throw err("parse", "Expected '{' after class declaration", this.current().line, this.current().col);
+          throw err(
+            "parse",
+            "Expected '{' after class declaration",
+            this.current().line,
+            this.current().col
+          );
         }
         this.pos += 1;
       }
     }
 
-    // If a main wrapper signature exists, skip it and parse its block
     if (this.current().type === "keyword") {
       const v = this.current().value;
       if (v === "public" || v === "static" || v === "void") {
@@ -92,15 +83,15 @@ class Parser {
       }
     }
 
-    const statements = [];
+    const statements: AstNode[] = [];
     while (this.current().type !== "eof" && this.current().type !== "brace") {
       statements.push(this.parseStatement());
     }
     return { type: "Program", children: statements };
   }
 
-  /** @returns {object} statement node */
-  parseStatement() {
+  /** Parse a statement node. */
+  parseStatement(): AstNode {
     const tok = this.current();
     if (tok.type === "keyword") {
       switch (tok.value) {
@@ -141,11 +132,7 @@ class Parser {
     throw err("parse", `Unexpected token '${tok.value || tok.type}'`, tok.line, tok.col);
   }
 
-  /**
-   * Detect assignment operator after a target.
-   * @returns {boolean}
-   */
-  isAssignmentAhead() {
+  isAssignmentAhead(): boolean {
     const next = this.tokens[this.pos + 1];
     if (!next) return false;
     if (next.type === "operator") return true;
@@ -154,37 +141,25 @@ class Parser {
     let lastCloseIndex = -1;
     for (let i = this.pos + 1; i < this.tokens.length; i += 1) {
       const tok = this.tokens[i];
-      if (tok.type === "bracket" && tok.value === "[") {
-        depth += 1;
-      }
+      if (tok.type === "bracket" && tok.value === "[") depth += 1;
       if (tok.type === "bracket" && tok.value === "]") {
         depth -= 1;
-        if (depth === 0) {
-          lastCloseIndex = i;
-        }
+        if (depth === 0) lastCloseIndex = i;
       }
       if (depth === 0 && lastCloseIndex !== -1 && i > lastCloseIndex) {
         const after = this.tokens[lastCloseIndex + 1];
-        return after && after.type === "operator";
+        return !!(after && after.type === "operator");
       }
     }
     return false;
   }
 
-  /**
-   * Detect a standalone method call statement like obj.method(...);
-   * @returns {boolean}
-   */
-  isCallStatementAhead() {
+  isCallStatementAhead(): boolean {
     const next = this.tokens[this.pos + 1];
-    return next && next.type === "dot";
+    return !!(next && next.type === "dot");
   }
 
-  /**
-   * Detect postfix update statement (i++ / arr[i]--) without consuming tokens.
-   * @returns {boolean}
-   */
-  isUpdateStatementAhead() {
+  isUpdateStatementAhead(): boolean {
     const next = this.tokens[this.pos + 1];
     if (!next) return false;
     if (next.type === "operator" && (next.value === "++" || next.value === "--")) {
@@ -195,18 +170,14 @@ class Parser {
     let lastCloseIndex = -1;
     for (let i = this.pos + 1; i < this.tokens.length; i += 1) {
       const tok = this.tokens[i];
-      if (tok.type === "bracket" && tok.value === "[") {
-        depth += 1;
-      }
+      if (tok.type === "bracket" && tok.value === "[") depth += 1;
       if (tok.type === "bracket" && tok.value === "]") {
         depth -= 1;
-        if (depth === 0) {
-          lastCloseIndex = i;
-        }
+        if (depth === 0) lastCloseIndex = i;
       }
       if (depth === 0 && lastCloseIndex !== -1 && i > lastCloseIndex) {
         const after = this.tokens[lastCloseIndex + 1];
-        return (
+        return !!(
           after &&
           after.type === "operator" &&
           (after.value === "++" || after.value === "--")
@@ -216,20 +187,15 @@ class Parser {
     return false;
   }
 
-  /**
-   * Parse expression statement (e.g., assignment to function call result).
-   * @returns {object}
-   */
-  parseExpressionStatement() {
-    const expr = this.parseAssignmentExpression();
+  parseExpressionStatement(): AstNode {
+    const expr = this.parseExpression();
     this.expect("semicolon", ";", "Expected ';' after expression");
     return { type: "ExpressionStatement", child: expr };
   }
 
-  /** @returns {object} block node */
-  parseBlock() {
+  parseBlock(): AstNode {
     this.expect("brace", "{", "Expected '{' to start block");
-    const statements = [];
+    const statements: AstNode[] = [];
     while (this.current().type !== "brace" && this.current().type !== "eof") {
       statements.push(this.parseStatement());
     }
@@ -237,8 +203,7 @@ class Parser {
     return { type: "Block", children: statements };
   }
 
-  /** @returns {object} declaration node */
-  parseDeclaration() {
+  parseDeclaration(): AstNode {
     const typeTok = this.current();
     this.pos += 1;
     const nameTok = this.expect("identifier", undefined, "Expected identifier in declaration");
@@ -246,7 +211,7 @@ class Parser {
     if (this.match("bracket", "[") && this.match("bracket", "]")) {
       isArray = true;
     }
-    let init = null;
+    let init: AstNode | null = null;
     if (this.match("operator", "=")) {
       init = this.parseExpression();
     }
@@ -259,13 +224,9 @@ class Parser {
     };
   }
 
-  /**
-   * Parse assignment or compound assignment.
-   * @returns {object}
-   */
-  parseAssignment() {
+  parseAssignment(): AstNode {
     const nameTok = this.expect("identifier", undefined, "Expected identifier");
-    let target = { type: "Identifier", name: nameTok.value, children: [] };
+    let target: AstNode = { type: "Identifier", name: nameTok.value, children: [] };
     if (this.match("bracket", "[")) {
       const indexExpr = this.parseExpression();
       this.expect("bracket", "]", "Expected ']' in array access");
@@ -282,20 +243,14 @@ class Parser {
     if (!allowed.has(opTok.value)) {
       throw err("parse", `Unsupported assignment operator '${opTok.value}'`, opTok.line, opTok.col);
     }
-    const expr = this.parseExpression();
+    const expr = this.parseAssignmentExpression();
     this.expect("semicolon", ";", "Expected ';' after assignment");
     return { type: "Assignment", target, op: opTok.value, children: [expr] };
   }
 
-  // parseAssignmentExpression is now implemented as part of parseExpression for expression grammar.
-
-  /**
-   * Parse postfix update expression without trailing semicolon (used in for-update).
-   * @returns {object}
-   */
-  parseUpdateExpression() {
+  parseUpdateExpression(): AstNode {
     const nameTok = this.expect("identifier", undefined, "Expected identifier");
-    let target = { type: "Identifier", name: nameTok.value, children: [] };
+    let target: AstNode = { type: "Identifier", name: nameTok.value, children: [] };
     if (this.match("bracket", "[")) {
       const indexExpr = this.parseExpression();
       this.expect("bracket", "]", "Expected ']' in array access");
@@ -314,13 +269,9 @@ class Parser {
     return { type: "Update", target, op: opTok.value, children: [] };
   }
 
-  /**
-   * Parse postfix update statement like i++ or i--.
-   * @returns {object}
-   */
-  parseUpdateStatement() {
+  parseUpdateStatement(): AstNode {
     const nameTok = this.expect("identifier", undefined, "Expected identifier");
-    let target = { type: "Identifier", name: nameTok.value, children: [] };
+    let target: AstNode = { type: "Identifier", name: nameTok.value, children: [] };
     if (this.match("bracket", "[")) {
       const indexExpr = this.parseExpression();
       this.expect("bracket", "]", "Expected ']' in array access");
@@ -340,22 +291,20 @@ class Parser {
     return { type: "Update", target, op: opTok.value, children: [] };
   }
 
-  /** @returns {object} if node */
-  parseIf() {
+  parseIf(): AstNode {
     this.expect("keyword", "if");
     this.expect("paren", "(", "Expected '(' after if");
     const test = this.parseExpression();
     this.expect("paren", ")", "Expected ')' after condition");
     const consequent = this.parseStatement();
-    let alternate = null;
+    let alternate: AstNode | null = null;
     if (this.match("keyword", "else")) {
       alternate = this.parseStatement();
     }
     return { type: "If", children: [test, consequent, ...(alternate ? [alternate] : [])] };
   }
 
-  /** @returns {object} while node */
-  parseWhile() {
+  parseWhile(): AstNode {
     this.expect("keyword", "while");
     this.expect("paren", "(", "Expected '(' after while");
     const test = this.parseExpression();
@@ -364,8 +313,7 @@ class Parser {
     return { type: "While", children: [test, body] };
   }
 
-  /** @returns {object} do-while node */
-  parseDoWhile() {
+  parseDoWhile(): AstNode {
     this.expect("keyword", "do");
     const body = this.parseStatement();
     this.expect("keyword", "while", "Expected 'while' after do-body");
@@ -376,11 +324,10 @@ class Parser {
     return { type: "DoWhile", children: [body, test] };
   }
 
-  /** @returns {object} for node */
-  parseFor() {
+  parseFor(): AstNode {
     this.expect("keyword", "for");
     this.expect("paren", "(", "Expected '(' after for");
-    let init = null;
+    let init: AstNode | null = null;
     if (!this.match("semicolon", ";")) {
       if (this.current().type === "keyword") {
         init = this.parseDeclaration();
@@ -388,12 +335,12 @@ class Parser {
         init = this.parseAssignment();
       }
     }
-    let test = null;
+    let test: AstNode | null = null;
     if (!this.match("semicolon", ";")) {
       test = this.parseExpression();
       this.expect("semicolon", ";", "Expected ';' after for-condition");
     }
-    let update = null;
+    let update: AstNode | null = null;
     if (!this.match("paren", ")")) {
       if (this.current().type === "identifier") {
         const next = this.tokens[this.pos + 1];
@@ -410,22 +357,14 @@ class Parser {
       this.expect("paren", ")", "Expected ')' after for-update");
     }
     const body = this.parseStatement();
-    return {
-      type: "For",
-      children: [init, test, update, body].filter(Boolean),
-    };
+    return { type: "For", children: [init, test, update, body].filter(Boolean) };
   }
 
-  /** @returns {object} expression node */
-  parseExpression() {
+  parseExpression(): AstNode {
     return this.parseAssignmentExpression();
   }
 
-  /**
-   * Parse assignment as an expression (right-associative).
-   * @returns {object}
-   */
-  parseAssignmentExpression() {
+  parseAssignmentExpression(): AstNode {
     const left = this.parseOr();
     if (this.current().type === "operator") {
       const opTok = this.current();
@@ -442,8 +381,7 @@ class Parser {
     return left;
   }
 
-  /** @returns {object} */
-  parseOr() {
+  parseOr(): AstNode {
     let expr = this.parseAnd();
     while (this.match("operator", "||")) {
       const op = this.tokens[this.pos - 1].value;
@@ -453,8 +391,7 @@ class Parser {
     return expr;
   }
 
-  /** @returns {object} */
-  parseAnd() {
+  parseAnd(): AstNode {
     let expr = this.parseEquality();
     while (this.match("operator", "&&")) {
       const op = this.tokens[this.pos - 1].value;
@@ -464,8 +401,7 @@ class Parser {
     return expr;
   }
 
-  /** @returns {object} */
-  parseEquality() {
+  parseEquality(): AstNode {
     let expr = this.parseRelational();
     while (this.match("operator", "==") || this.match("operator", "!=")) {
       const op = this.tokens[this.pos - 1].value;
@@ -475,8 +411,7 @@ class Parser {
     return expr;
   }
 
-  /** @returns {object} */
-  parseRelational() {
+  parseRelational(): AstNode {
     let expr = this.parseAdditive();
     while (
       this.match("operator", "<") ||
@@ -491,8 +426,7 @@ class Parser {
     return expr;
   }
 
-  /** @returns {object} */
-  parseAdditive() {
+  parseAdditive(): AstNode {
     let expr = this.parseMultiplicative();
     while (this.match("operator", "+") || this.match("operator", "-")) {
       const op = this.tokens[this.pos - 1].value;
@@ -502,8 +436,7 @@ class Parser {
     return expr;
   }
 
-  /** @returns {object} */
-  parseMultiplicative() {
+  parseMultiplicative(): AstNode {
     let expr = this.parseUnary();
     while (this.match("operator", "*") || this.match("operator", "/") || this.match("operator", "%")) {
       const op = this.tokens[this.pos - 1].value;
@@ -513,8 +446,7 @@ class Parser {
     return expr;
   }
 
-  /** @returns {object} */
-  parseUnary() {
+  parseUnary(): AstNode {
     if (this.match("operator", "!") || this.match("operator", "-")) {
       const op = this.tokens[this.pos - 1].value;
       const right = this.parseUnary();
@@ -523,8 +455,7 @@ class Parser {
     return this.parsePrimary();
   }
 
-  /** @returns {object} */
-  parsePrimary() {
+  parsePrimary(): AstNode {
     const tok = this.current();
     if (this.match("keyword", "new")) {
       return this.parseArrayCreation();
@@ -549,17 +480,11 @@ class Parser {
     throw err("parse", `Unexpected token '${tok.value || tok.type}'`, tok.line, tok.col);
   }
 
-  /**
-   * Parse chained postfix parts (call, property, index, update).
-   * @param {object} base
-   * @returns {object}
-   */
-  parsePostfix(base) {
+  parsePostfix(base: AstNode): AstNode {
     let node = base;
     while (true) {
       if (this.match("paren", "(")) {
-        // Handle direct function call like check()
-        const args = [];
+        const args: AstNode[] = [];
         if (!this.match("paren", ")")) {
           args.push(this.parseExpression());
           while (this.match("comma", ",")) {
@@ -576,7 +501,7 @@ class Parser {
       if (this.match("dot", ".")) {
         const propTok = this.expect("identifier", undefined, "Expected property name");
         if (this.match("paren", "(")) {
-          const args = [];
+          const args: AstNode[] = [];
           if (!this.match("paren", ")")) {
             args.push(this.parseExpression());
             while (this.match("comma", ",")) {
@@ -591,7 +516,8 @@ class Parser {
           node = { type: "Length", children: [node] };
           continue;
         }
-        throw err("parse", `Unsupported property '${propTok.value}'`, propTok.line, propTok.col);
+        node = { type: "Property", object: node, name: propTok.value };
+        continue;
       }
       if (this.match("bracket", "[")) {
         const indexExpr = this.parseExpression();
@@ -615,24 +541,16 @@ class Parser {
     return node;
   }
 
-  /**
-   * Parse a call statement like obj.method(...);.
-   * @returns {object}
-   */
-  parseCallStatement() {
+  parseCallStatement(): AstNode {
     const base = this.expect("identifier", undefined, "Expected identifier");
     const node = this.parsePostfix({ type: "Identifier", name: base.value, children: [] });
     this.expect("semicolon", ";", "Expected ';' after call");
     return { type: "CallStatement", child: node };
   }
 
-  /**
-   * Parse array creation: new <type>[size] or new <type>[] {..}.
-   * @returns {object}
-   */
-  parseArrayCreation() {
+  parseArrayCreation(): AstNode {
     const typeTok = this.expect("keyword", undefined, "Expected type after new");
-    const dimensions = [];
+    const dimensions: Array<AstNode | null> = [];
     while (this.match("bracket", "[")) {
       if (!this.match("bracket", "]")) {
         dimensions.push(this.parseExpression());
@@ -644,10 +562,10 @@ class Parser {
     if (dimensions.length === 0) {
       throw err("parse", "Expected '[' after array type", typeTok.line, typeTok.col);
     }
-
-    const hasInitializer = dimensions[dimensions.length - 1] === null && this.match("brace", "{");
+    const hasInitializer =
+      dimensions[dimensions.length - 1] === null && this.match("brace", "{");
     if (hasInitializer) {
-      const elements = [];
+      const elements: AstNode[] = [];
       if (!this.match("brace", "}")) {
         elements.push(this.parseExpression());
         while (this.match("comma", ",")) {
@@ -657,36 +575,26 @@ class Parser {
       }
       return { type: "ArrayLiteral", children: elements };
     }
-
     if (dimensions.some((d) => d === null)) {
       throw err("parse", "Expected array initializer", typeTok.line, typeTok.col);
     }
-
     return { type: "NewArray", dataType: typeTok.value, children: dimensions };
   }
 }
 
 /**
- * Parse a token list into an AST.
- * @param {Array} tokens
- * @returns {{ast: object}}
+ * Extract a base name for array access formatting.
  */
-function parse(tokens) {
+function emitBaseName(node: AstNode): string {
+  if (node.type === "Identifier") return node.name;
+  if (node.type === "ArrayAccess") return node.name;
+  if (node.type === "MethodCall") return emitBaseName(node.object);
+  if (node.type === "Property") return `${emitBaseName(node.object)}.${node.name}`;
+  return "?";
+}
+
+export function parse(tokens: Token[]): { ast: AstNode } {
   const parser = new Parser(tokens);
   const ast = parser.parseProgram();
   return { ast };
 }
-
-/**
- * Extract a base name for array access formatting.
- * @param {object} node
- * @returns {string}
- */
-function emitBaseName(node) {
-  if (node.type === "Identifier") return node.name;
-  if (node.type === "ArrayAccess") return node.name;
-  if (node.type === "MethodCall") return emitBaseName(node.object);
-  return "?";
-}
-
-module.exports = { parse };

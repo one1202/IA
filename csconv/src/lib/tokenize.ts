@@ -1,7 +1,15 @@
-/** @file Tokenizer for the Java subset. */
-const { err } = require("./errors.cjs");
+import { err, ConvertError } from "./errors";
 
-/** @type {Set<string>} */
+/**
+ * Token representation used by the parser.
+ */
+export type Token = {
+  type: string;
+  value: string;
+  line: number;
+  col: number;
+};
+
 const KEYWORDS = new Set([
   "if",
   "else",
@@ -26,21 +34,17 @@ const KEYWORDS = new Set([
 
 /**
  * Tokenize normalized source into a token stream.
- * @param {string} source
- * @returns {{tokens?: Array, error?: object}}
  */
-/**
- * Tokenize normalized source into a token stream.
- * @param {string} source
- * @returns {{tokens?: Array, error?: object}}
- */
-function tokenize(source) {
-  const tokens = [];
+export function tokenize(
+  source: string
+): { tokens?: Token[]; error?: ConvertError } {
+  const tokens: Token[] = [];
   let i = 0;
   let line = 1;
   let col = 1;
 
-  const push = (type, value) => tokens.push({ type, value, line, col });
+  const push = (type: string, value: string) =>
+    tokens.push({ type, value, line, col });
 
   while (i < source.length) {
     const ch = source[i];
@@ -56,7 +60,7 @@ function tokenize(source) {
       continue;
     }
     if (/[A-Za-z_]/.test(ch)) {
-      let start = i;
+      const start = i;
       while (i < source.length && /[A-Za-z0-9_]/.test(source[i])) i += 1;
       const value = source.slice(start, i);
       const type = KEYWORDS.has(value) ? "keyword" : "identifier";
@@ -65,7 +69,7 @@ function tokenize(source) {
       continue;
     }
     if (/[0-9]/.test(ch)) {
-      let start = i;
+      const start = i;
       while (i < source.length && /[0-9]/.test(source[i])) i += 1;
       if (source[i] === ".") {
         i += 1;
@@ -97,21 +101,38 @@ function tokenize(source) {
           break;
         }
         if (c === "\n") {
-          return { error: err("tokenization", "Unterminated string literal", line, col) };
+          return {
+            error: err("tokenization", "Unterminated string literal", line, col),
+          };
         }
         strVal += c;
         i += 1;
         col += 1;
       }
       if (!closed) {
-        return { error: err("tokenization", "Unterminated string literal", line, col) };
+        return {
+          error: err("tokenization", "Unterminated string literal", line, col),
+        };
       }
       push("string", strVal);
       continue;
     }
 
     const twoChar = source.slice(i, i + 2);
-    const twoOps = ["==", "!=", "<=", ">=", "&&", "||", "++", "--", "+=", "-=", "*=", "/="];
+    const twoOps = [
+      "==",
+      "!=",
+      "<=",
+      ">=",
+      "&&",
+      "||",
+      "++",
+      "--",
+      "+=",
+      "-=",
+      "*=",
+      "/=",
+    ];
     if (twoOps.includes(twoChar)) {
       push("operator", twoChar);
       i += 2;
@@ -119,7 +140,7 @@ function tokenize(source) {
       continue;
     }
 
-    const singleMap = {
+    const singleMap: Record<string, string> = {
       "+": "operator",
       "-": "operator",
       "*": "operator",
@@ -146,11 +167,11 @@ function tokenize(source) {
       continue;
     }
 
-    return { error: err("tokenization", `Unsupported character '${ch}'`, line, col) };
+    return {
+      error: err("tokenization", `Unsupported character '${ch}'`, line, col),
+    };
   }
 
   tokens.push({ type: "eof", value: "", line, col });
   return { tokens };
 }
-
-module.exports = { tokenize };
