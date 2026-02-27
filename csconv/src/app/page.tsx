@@ -36,7 +36,7 @@ export default function Home() {
   const handleConvert = () => {
     setStatus("working");
     try {
-      const result = convert(javaInput, { style: "sc-02" });
+      const result = convert(javaInput);
       if (result.errors?.length) {
         const formatted = result.errors
           .map((e) => `[${e.stage}] ${e.message} (${e.line}:${e.column})`)

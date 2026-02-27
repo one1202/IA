@@ -3,7 +3,7 @@ import { normalize } from "./normalize";
 import { scopeGuard } from "./scope-guard";
 import { tokenize } from "./tokenize";
 import { parse } from "./parser";
-import { generatePseudocode, type StyleId } from "./generator";
+import { generatePseudocode } from "./generator";
 
 /**
  * Conversion result with optional errors.
@@ -14,11 +14,11 @@ export type ConvertResult = {
 };
 
 /**
- * Convert Java source to pseudocode in the selected style.
+ * Convert Java source to pseudocode using the unified ruleset.
  */
 export function convert(
   javaSource: string,
-  options: { style?: StyleId } = {}
+  _options: Record<string, never> = {}
 ): ConvertResult {
   if (!javaSource || !javaSource.trim()) {
     return { errors: [err("input", "Empty input")] };
@@ -41,6 +41,6 @@ export function convert(
     return { errors: [err("parse", message)] };
   }
 
-  const pseudocode = generatePseudocode(ast, options);
+  const pseudocode = generatePseudocode(ast);
   return { pseudocode };
 }

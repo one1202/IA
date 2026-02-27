@@ -1,20 +1,6 @@
 import type { AstNode } from "./parser";
 
 /**
- * Supported output styles.
- */
-export type StyleId =
-  | "sc-01"
-  | "sc-02"
-  | "sc-03"
-  | "sc-04"
-  | "sc-05"
-  | "sc-06"
-  | "sc-07"
-  | "sc-08"
-  | "sc-09";
-
-/**
  * Keyword shape used by each pseudocode style.
  */
 type StyleKeywords = {
@@ -65,178 +51,73 @@ const RELATIONAL_OPS = new Set(["<", ">", "<=", ">=", "==", "!="]);
 const LOGICAL_OPS = new Set(["&&", "||"]);
 
 /**
- * Resolve style options by id.
+ * Unified style configuration shared across SC outputs.
  */
-function resolveStyle(styleId?: StyleId): StyleConfig {
-  const style = styleId || "sc-02";
-  if (style === "sc-01") {
-    return {
-      keyword: {
-        if: "IF",
-        then: "THEN",
-        else: "ELSE",
-        elseIf: "ELSE IF",
-        endIf: "END IF",
-        input: "INPUT",
-        output: "OUTPUT",
-        while: "WHILE",
-        do: "DO",
-        endWhile: "END WHILE",
-        repeat: "REPEAT",
-        until: "UNTIL",
-        for: "FOR",
-        endFor: "END FOR",
-      },
-      boolTrue: "TRUE",
-      boolFalse: "FALSE",
-      and: "AND",
-      or: "OR",
-      not: "NOT",
-      neq: "!=",
-      mod: "%",
-      indent: "  ",
-      wrapRelationalInAssign: true,
-      wrapRelationalInLogical: true,
-    };
-  }
-  if (style === "sc-03" || style === "sc-07" || style === "sc-09") {
-    return {
-      keyword: {
-        if: "if",
-        then: "then",
-        else: "else",
-        elseIf: "else if",
-        endIf: "end if",
-        input: "input",
-        output: "output",
-        loop: "loop",
-        loopWhile: "loop while",
-        endLoop: "end loop",
-        until: "until",
-      },
-      boolTrue: "true",
-      boolFalse: "false",
-      and: "and",
-      or: "or",
-      not: "not",
-      neq: "<>",
-      mod: "mod",
-      indent: "    ",
-      wrapRelationalInAssign: false,
-      wrapRelationalInLogical: true,
-    };
-  }
-  if (style === "sc-04" || style === "sc-05" || style === "sc-08") {
-    return {
-      keyword: {
-        if: "if",
-        then: "then",
-        else: "else",
-        elseIf: "else if",
-        endIf: "end if",
-        input: "input",
-        output: "output",
-        loop: "loop",
-        loopWhile: "loop while",
-        endLoop: "end loop",
-        until: "until",
-      },
-      boolTrue: "true",
-      boolFalse: "false",
-      and: "and",
-      or: "or",
-      not: "not",
-      neq: "<>",
-      mod: "mod",
-      indent: "    ",
-      wrapRelationalInAssign: false,
-      wrapRelationalInLogical: true,
-      wrapMulInAdd: true,
-    };
-  }
-  if (style === "sc-06") {
-    return {
-      keyword: {
-        if: "if",
-        then: "then",
-        else: "else",
-        elseIf: "else if",
-        endIf: "end if",
-        input: "input",
-        output: "output",
-        loop: "loop",
-        loopWhile: "loop while",
-        endLoop: "end loop",
-        until: "until",
-      },
-      boolTrue: "true",
-      boolFalse: "false",
-      and: "and",
-      or: "or",
-      not: "not",
-      neq: "<>",
-      mod: "mod",
-      indent: "    ",
-      wrapRelationalInAssign: false,
-      wrapRelationalInLogical: true,
-      methodAlias: {
-        add: "addItem",
-      },
-      methodTransform: {
-        set: (objectNode, args, styleConfig) =>
-          `${emitExpression(objectNode, styleConfig)}[${args[0]}] = ${args[1]}`,
-        get: (objectNode, args, styleConfig) =>
-          `${emitExpression(objectNode, styleConfig)}[${args[0]}]`,
-        put: (objectNode, args, styleConfig) =>
-          `${emitExpression(objectNode, styleConfig)}[${args[0]}] = ${args[1]}`,
-        containsKey: (objectNode, args, styleConfig) =>
-          `containsKey(${emitExpression(objectNode, styleConfig)}, ${args[0]})`,
-        remove: (objectNode, args, styleConfig) => {
-          const objectText = emitExpression(objectNode, styleConfig);
-          if (objectText === "map") {
-            return `remove ${objectText}[${args[0]}]`;
-          }
-          return `${objectText}.removeItemAt(${args.join(", ")})`;
-        },
-        size: (objectNode, args, styleConfig) =>
-          `length(${emitExpression(objectNode, styleConfig)})`,
-        addAt: (objectNode, args, styleConfig) =>
-          `${emitExpression(objectNode, styleConfig)}.insertItemAt(${args.join(", ")})`,
-      },
-      specialMethodMap: {
-        "add,2": "insertItemAt",
-      },
-    };
-  }
-  return {
-    keyword: {
-      if: "if",
-      then: "then",
-      else: "else",
-      elseIf: "else if",
-      endIf: "end if",
-      input: "input",
-      output: "output",
-      while: "while",
-      do: "do",
-      endWhile: "end while",
-      repeat: "repeat",
-      until: "until",
-      for: "for",
-      endFor: "end for",
+const UNIFIED_STYLE: StyleConfig = {
+  keyword: {
+    if: "if",
+    then: "then",
+    else: "else",
+    elseIf: "else if",
+    endIf: "end if",
+    input: "input",
+    output: "output",
+    loop: "loop",
+    loopWhile: "loop while",
+    endLoop: "end loop",
+    until: "until",
+    while: "while",
+    do: "do",
+    endWhile: "end while",
+    repeat: "repeat",
+    for: "for",
+    endFor: "end for",
+  },
+  boolTrue: "true",
+  boolFalse: "false",
+  and: "and",
+  or: "or",
+  not: "not",
+  neq: "<>",
+  mod: "mod",
+  indent: "    ",
+  wrapRelationalInAssign: true,
+  wrapRelationalInLogical: false,
+  wrapMulInAdd: true,
+  methodAlias: {
+    add: "addItem",
+  },
+  methodTransform: {
+    set: (objectNode, args, styleConfig) =>
+      `${emitExpression(objectNode, styleConfig)}[${args[0]}] = ${args[1]}`,
+    get: (objectNode, args, styleConfig) =>
+      `${emitExpression(objectNode, styleConfig)}[${args[0]}]`,
+    put: (objectNode, args, styleConfig) =>
+      `${emitExpression(objectNode, styleConfig)}[${args[0]}] = ${args[1]}`,
+    containsKey: (objectNode, args, styleConfig) =>
+      `containsKey(${emitExpression(objectNode, styleConfig)}, ${args[0]})`,
+    remove: (objectNode, args, styleConfig) => {
+      const objectText = emitExpression(objectNode, styleConfig);
+      if (objectText === "map") {
+        return `remove ${objectText}[${args[0]}]`;
+      }
+      return `${objectText}.removeItemAt(${args.join(", ")})`;
     },
-    boolTrue: "true",
-    boolFalse: "false",
-    and: "and",
-    or: "or",
-    not: "not",
-    neq: "<>",
-    mod: "mod",
-    indent: "    ",
-    wrapRelationalInAssign: false,
-    wrapRelationalInLogical: true,
-    wrapMulInAdd: false,
-  };
+    size: (objectNode, args, styleConfig) =>
+      `length(${emitExpression(objectNode, styleConfig)})`,
+    addAt: (objectNode, args, styleConfig) =>
+      `${emitExpression(objectNode, styleConfig)}.insertItemAt(${args.join(", ")})`,
+  },
+  specialMethodMap: {
+    "add,2": "insertItemAt",
+  },
+};
+
+/**
+ * Resolve the unified style used across all tests.
+ */
+function resolveStyle(): StyleConfig {
+  return UNIFIED_STYLE;
 }
 
 /**
@@ -328,9 +209,6 @@ function shouldWrapChild(child: AstNode, parentOp: string, style: StyleConfig): 
   if (style.wrapMulInAdd && parentOp === "-" && ["*", "/", "%"].includes(child.op)) {
     return true;
   }
-  if ((parentOp === "==" || parentOp === "!=" || RELATIONAL_OPS.has(parentOp)) && child.op === "%") {
-    return true;
-  }
   if (LOGICAL_OPS.has(parentOp) && RELATIONAL_OPS.has(child.op)) {
     return style.wrapRelationalInLogical;
   }
@@ -394,7 +272,7 @@ function emitExpression(node: AstNode, style: StyleConfig): string {
       const inner = emitExpression(node.children[0], style);
       const needsParens = node.children[0]?.type === "Binary";
       if (node.op === "!") {
-        return `${style.not} ${needsParens ? `(${inner})` : inner}`;
+        return `${style.not} ${inner}`;
       }
       return `${node.op}${needsParens ? `(${inner})` : inner}`;
     }
@@ -415,7 +293,7 @@ function emitExpression(node: AstNode, style: StyleConfig): string {
     case "Binary": {
       if (node.op === "||" || node.op === "&&") {
         const chain = flattenLogicalChain(node.op, node);
-        const wrapRel = node.op === "&&" || (node.op === "||" && chain.length === 2);
+        const wrapRel = style.wrapRelationalInLogical;
         const rendered = chain.map((child) => {
           const text = emitExpression(child, style);
           if (wrapRel && isRelational(child)) return `(${text})`;
@@ -449,8 +327,18 @@ function formatRhs(expr: AstNode, style: StyleConfig): string {
  * Flatten chained string concatenations into a list of nodes.
  */
 function flattenConcat(node: AstNode): AstNode[] {
-  if (node.type === "Binary" && node.op === "+") {
-    return [...flattenConcat(node.children[0]), ...flattenConcat(node.children[1])];
+  if (node.type === "Binary" && node.op === "+" && nodeContainsStringLiteral(node)) {
+    const left = node.children[0];
+    const right = node.children[1];
+    const leftParts =
+      left.type === "Binary" && left.op === "+" && nodeContainsStringLiteral(left)
+        ? flattenConcat(left)
+        : [left];
+    const rightParts =
+      right.type === "Binary" && right.op === "+" && nodeContainsStringLiteral(right)
+        ? flattenConcat(right)
+        : [right];
+    return [...leftParts, ...rightParts];
   }
   return [node];
 }
@@ -463,6 +351,24 @@ function isStringLiteral(node: AstNode): boolean {
 }
 
 /**
+ * Check if a node subtree contains any string literal.
+ */
+function nodeContainsStringLiteral(node: AstNode): boolean {
+  if (isStringLiteral(node)) return true;
+  const children = node.children || [];
+  if (node.type === "Property" && node.object) {
+    return nodeContainsStringLiteral(node.object);
+  }
+  if (node.type === "ArrayAccess" || node.type === "NewArray" || node.type === "ArrayLiteral") {
+    return children.some((child: AstNode) => nodeContainsStringLiteral(child));
+  }
+  if (node.type === "Call" || node.type === "MethodCall" || node.type === "Binary" || node.type === "Unary") {
+    return children.some((child: AstNode) => nodeContainsStringLiteral(child));
+  }
+  return false;
+}
+
+/**
  * Check if any node in a list is a string literal.
  */
 function containsStringLiteral(nodes: AstNode[]): boolean {
@@ -472,9 +378,9 @@ function containsStringLiteral(nodes: AstNode[]): boolean {
 /**
  * Format an expression for output statements.
  */
-function formatOutputExpression(node: AstNode, style: StyleConfig): string {
+function formatOutputExpression(node: AstNode, style: StyleConfig, wrapBinary = false): string {
   const text = emitExpression(node, style);
-  if (node.type === "Binary") return `(${text})`;
+  if (node.type === "Binary") return wrapBinary ? `(${text})` : text;
   return text;
 }
 
@@ -484,9 +390,11 @@ function formatOutputExpression(node: AstNode, style: StyleConfig): string {
 function formatOutputArgsFromExpression(expr: AstNode, style: StyleConfig): string[] {
   const parts = flattenConcat(expr);
   if (parts.length > 1 && containsStringLiteral(parts)) {
-    return parts.map((part) => (isStringLiteral(part) ? part.value : formatOutputExpression(part, style)));
+    return parts.map((part) =>
+      isStringLiteral(part) ? part.value : formatOutputExpression(part, style, true)
+    );
   }
-  return [formatOutputExpression(expr, style)];
+  return [formatOutputExpression(expr, style, false)];
 }
 
 /**
@@ -497,7 +405,7 @@ function formatOutputArgsFromCall(call: AstNode, style: StyleConfig): string[] {
   if (call.children.length === 1) {
     return formatOutputArgsFromExpression(call.children[0], style);
   }
-  return call.children.map((arg: AstNode) => formatOutputExpression(arg, style));
+  return call.children.map((arg: AstNode) => formatOutputExpression(arg, style, false));
 }
 
 /**
@@ -654,8 +562,8 @@ function collectIfChain(node: AstNode): { chain: Array<{ test: AstNode; conseque
 /**
  * Generate pseudocode lines from the parsed AST.
  */
-export function generatePseudocode(ast: AstNode, options: { style?: StyleId } = {}): string {
-  const style = resolveStyle(options.style);
+export function generatePseudocode(ast: AstNode): string {
+  const style = resolveStyle();
   const lines: string[] = [];
   const walk = (node: AstNode, depth = 0) => {
     const pad = style.indent.repeat(depth);
