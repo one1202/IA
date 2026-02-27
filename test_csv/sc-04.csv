@@ -14,7 +14,7 @@ Java Code,Pseudocode Equivalent
 "names = new String[2]; names[0] = ""A""; names[1] = ""B"";","names = new array[2]\nnames[0] = ""A""\nnames[1] = ""B"""
 "arr = new int[] {1,2,3};","arr = [1, 2, 3]"
 "arr = new int[] {7,8,9}; x = arr[1];","arr = [7, 8, 9]\nx = arr[1]"
-"arr[i] = arr[i] + 1;","arr[i] = arr[i] + 1"
+"arr[i]++;","arr[i] = arr[i] + 1"
 "sum = 0; for (i = 0; i < arr.length; i++) { sum += arr[i]; }","sum = 0\nloop i from 0 to length(arr) - 1\n    sum = sum + arr[i]\nend loop"
 "max = arr[0]; for (i = 1; i < arr.length; i++) { if (arr[i] > max) { max = arr[i]; } }","max = arr[0]\nloop i from 1 to length(arr) - 1\n    if arr[i] > max then\n        max = arr[i]\n    end if\nend loop"
 "arr[i] = arr[i] / 2;","arr[i] = arr[i] / 2"

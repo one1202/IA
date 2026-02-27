@@ -10,7 +10,7 @@ Java Code,Pseudocode Equivalent
 "System.out.println(""Name: "" + name);","output ""Name: "", name"
 "System.out.println(""Sum = "" + (a + b));","output ""Sum = "", (a + b)"
 "System.out.println(""A="" + a + "", B="" + b);","output ""A="", a, "", B="", b"
-"System.out.println(x + y);","output (x + y)"
+"System.out.println(x + y);","output x + y"
 "System.out.print(""Enter x: ""); x = sc.nextInt();","output ""Enter x: ""\ninput x"
 "System.out.print(""Enter y: ""); y = sc.nextInt();","output ""Enter y: ""\ninput y"
 "System.out.println(""Average: "" + (sum / count));","output ""Average: "", (sum / count)"
