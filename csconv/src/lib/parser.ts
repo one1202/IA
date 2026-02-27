@@ -207,9 +207,9 @@ class Parser {
     const typeTok = this.current();
     this.pos += 1;
     const nameTok = this.expect("identifier", undefined, "Expected identifier in declaration");
-    let isArray = false;
-    if (this.match("bracket", "[") && this.match("bracket", "]")) {
-      isArray = true;
+    // Consume one or more array brackets (e.g. int[][]).
+    while (this.match("bracket", "[")) {
+      this.expect("bracket", "]", "Expected ']' after '[' in array declaration");
     }
     let init: AstNode | null = null;
     if (this.match("operator", "=")) {
@@ -219,7 +219,7 @@ class Parser {
     return {
       type: "Declaration",
       name: nameTok.value,
-      dataType: typeTok.value + (isArray ? "[]" : ""),
+      dataType: typeTok.value,
       children: init ? [init] : [],
     };
   }
