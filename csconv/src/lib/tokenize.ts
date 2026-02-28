@@ -1,4 +1,5 @@
-import { err, ConvertError } from "./errors";
+import { err } from "./errors";
+import type { ConvertError } from "./errors";
 
 /**
  * Token representation used by the parser.
@@ -31,6 +32,44 @@ const KEYWORDS = new Set([
   "false",
   "new",
 ]);
+
+/** Two-character operators. */
+const TWO_CHAR_OPS = new Set([
+  "==",
+  "!=",
+  "<=",
+  ">=",
+  "&&",
+  "||",
+  "++",
+  "--",
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+]);
+
+/** Single-character token mapping. */
+const SINGLE_CHAR_TOKENS: Record<string, string> = {
+  "+": "operator",
+  "-": "operator",
+  "*": "operator",
+  "/": "operator",
+  "%": "operator",
+  "<": "operator",
+  ">": "operator",
+  "=": "operator",
+  "!": "operator",
+  "(": "paren",
+  ")": "paren",
+  "{": "brace",
+  "}": "brace",
+  "[": "bracket",
+  "]": "bracket",
+  ".": "dot",
+  ";": "semicolon",
+  ",": "comma",
+};
 
 /**
  * Tokenize normalized source into a token stream.
@@ -119,49 +158,15 @@ export function tokenize(
     }
 
     const twoChar = source.slice(i, i + 2);
-    const twoOps = [
-      "==",
-      "!=",
-      "<=",
-      ">=",
-      "&&",
-      "||",
-      "++",
-      "--",
-      "+=",
-      "-=",
-      "*=",
-      "/=",
-    ];
-    if (twoOps.includes(twoChar)) {
+    if (TWO_CHAR_OPS.has(twoChar)) {
       push("operator", twoChar);
       i += 2;
       col += 2;
       continue;
     }
 
-    const singleMap: Record<string, string> = {
-      "+": "operator",
-      "-": "operator",
-      "*": "operator",
-      "/": "operator",
-      "%": "operator",
-      "<": "operator",
-      ">": "operator",
-      "=": "operator",
-      "!": "operator",
-      "(": "paren",
-      ")": "paren",
-      "{": "brace",
-      "}": "brace",
-      "[": "bracket",
-      "]": "bracket",
-      ".": "dot",
-      ";": "semicolon",
-      ",": "comma",
-    };
-    if (singleMap[ch]) {
-      push(singleMap[ch], ch);
+    if (SINGLE_CHAR_TOKENS[ch]) {
+      push(SINGLE_CHAR_TOKENS[ch], ch);
       i += 1;
       col += 1;
       continue;

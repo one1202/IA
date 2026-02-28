@@ -16,10 +16,7 @@ export type ConvertResult = {
 /**
  * Convert Java source to pseudocode using the unified ruleset.
  */
-export function convert(
-  javaSource: string,
-  _options: Record<string, never> = {}
-): ConvertResult {
+export function convert(javaSource: string): ConvertResult {
   if (!javaSource || !javaSource.trim()) {
     return { errors: [err("input", "Empty input")] };
   }
@@ -29,18 +26,8 @@ export function convert(
   const tokenResult = tokenize(normalized);
   if (tokenResult.error) return { errors: [tokenResult.error] };
 
-  let ast;
-  try {
-    const parseResult = parse(tokenResult.tokens || []);
-    ast = parseResult.ast;
-  } catch (e) {
-    if (e && typeof e === "object" && "stage" in e) {
-      return { errors: [e as ConvertError] };
-    }
-    const message = e instanceof Error ? e.message : "Parse error";
-    return { errors: [err("parse", message)] };
-  }
-
-  const pseudocode = generatePseudocode(ast);
+  const parseResult = parse(tokenResult.tokens || []);
+  if (parseResult.error) return { errors: [parseResult.error] };
+  const pseudocode = generatePseudocode(parseResult.ast as NonNullable<typeof parseResult.ast>);
   return { pseudocode };
 }

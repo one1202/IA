@@ -12,7 +12,10 @@ export function scopeGuard(source: string): ConvertError | null {
     { re: /\btry\b/, why: "Exceptions are out of scope." },
     { re: /\bcatch\b/, why: "Exceptions are out of scope." },
     { re: /\bswitch\b/, why: "Switch is out of scope." },
-    { re: /\bgeneric\s*</, why: "Generics are out of scope." },
+    {
+      re: /\b[A-Za-z_]\w*\s*<\s*[A-Za-z_]\w*(\s*,\s*[A-Za-z_]\w*)*\s*>/,
+      why: "Generics are out of scope.",
+    },
     { re: /\bclass\b.*\bclass\b/, why: "Multiple classes are out of scope." },
   ];
   for (const rule of banned) {
