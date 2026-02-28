@@ -98,7 +98,7 @@ const UNIFIED_STYLE: StyleConfig = {
       `containsKey(${emitExpression(objectNode, styleConfig)}, ${args[0]})`,
     remove: (objectNode, args, styleConfig) => {
       const objectText = emitExpression(objectNode, styleConfig);
-      if (objectText === "map") {
+      if (objectNode.type === "Identifier" && isMapLikeName(objectNode.name)) {
         return `remove ${objectText}[${args[0]}]`;
       }
       return `${objectText}.removeItemAt(${args.join(", ")})`;
@@ -202,6 +202,14 @@ function isScannerInputCall(node: AstNode): boolean {
 }
 
 /**
+ * Heuristically detect map-like identifiers for remove output.
+ */
+function isMapLikeName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes("map") || lower.includes("dict");
+}
+
+/**
  * Decide if child expression requires parentheses.
  */
 function shouldWrapChild(child: AstNode, parentOp: string, style: StyleConfig): boolean {
@@ -235,10 +243,11 @@ function emitExpression(node: AstNode, style: StyleConfig): string {
     case "MethodCall": {
       const args = node.children.map((arg: AstNode) => emitExpression(arg, style));
       if (node.name === "remove") {
-        if (node.object.type === "Identifier" && node.object.name === "map") {
-          return `remove ${emitExpression(node.object, style)}[${args[0]}]`;
+        const objectText = emitExpression(node.object, style);
+        if (node.object.type === "Identifier" && isMapLikeName(node.object.name)) {
+          return `remove ${objectText}[${args[0]}]`;
         }
-        return `${emitExpression(node.object, style)}.removeItemAt(${args.join(", ")})`;
+        return `${objectText}.removeItemAt(${args.join(", ")})`;
       }
       const argKey = `${node.name},${args.length}`;
       if (style.specialMethodMap && style.specialMethodMap[argKey]) {
@@ -324,6 +333,31 @@ function formatRhs(expr: AstNode, style: StyleConfig): string {
 }
 
 /**
+ * Format an assignment-like node into a single line.
+ */
+function formatAssignmentLine(node: AstNode, style: StyleConfig): string {
+  if (node.type !== "Assignment" && node.type !== "AssignmentExpr") {
+    return "<?>"; 
+  }
+  const target = emitExpression(node.target, style);
+  const rhs = node.children[0];
+  const op = node.op || "=";
+  if (op === "=") {
+    return `${target} = ${formatRhs(rhs, style)}`;
+  }
+  const opMap: Record<string, string> = {
+    "+=": "+",
+    "-=": "-",
+    "*=": "*",
+    "/=": "/",
+    "%=": "%",
+  };
+  const binOp = opMap[op];
+  const exprText = emitExpression(rhs, style);
+  return `${target} = ${target} ${pseudoOperator(binOp, style)} ${exprText}`;
+}
+
+/**
  * Flatten chained string concatenations into a list of nodes.
  */
 function flattenConcat(node: AstNode): AstNode[] {
@@ -355,7 +389,7 @@ function isStringLiteral(node: AstNode): boolean {
  */
 function nodeContainsStringLiteral(node: AstNode): boolean {
   if (isStringLiteral(node)) return true;
-  const children = node.children || [];
+  const children = "children" in node ? (node.children || []) : [];
   if (node.type === "Property" && node.object) {
     return nodeContainsStringLiteral(node.object);
   }
@@ -418,6 +452,14 @@ function formatSystemOutCall(call: AstNode, style: StyleConfig): string | null {
   const args = formatOutputArgsFromCall(call, style);
   if (args.length === 0) return style.keyword.output;
   return `${style.keyword.output} ${args.join(", ")}`;
+}
+
+/**
+ * Format a statement expression, handling System.out output when applicable.
+ */
+function formatStatementExpression(node: AstNode, style: StyleConfig): string {
+  const outputLine = formatSystemOutCall(node, style);
+  return outputLine || emitExpression(node, style);
 }
 
 /**
@@ -588,27 +630,12 @@ export function generatePseudocode(ast: AstNode): string {
         break;
       }
       case "Assignment": {
-        const target = emitExpression(node.target, style);
         const rhs = node.children[0];
         if (isScannerInputCall(rhs)) {
-          lines.push(`${pad}${style.keyword.input} ${target}`);
+          lines.push(`${pad}${style.keyword.input} ${emitExpression(node.target, style)}`);
           break;
         }
-        const op = node.op || "=";
-        if (op === "=") {
-          lines.push(`${pad}${target} = ${formatRhs(rhs, style)}`);
-          break;
-        }
-        const opMap: Record<string, string> = {
-          "+=": "+",
-          "-=": "-",
-          "*=": "*",
-          "/=": "/",
-          "%=": "%",
-        };
-        const binOp = opMap[op];
-        const exprText = emitExpression(rhs, style);
-        lines.push(`${pad}${target} = ${target} ${pseudoOperator(binOp, style)} ${exprText}`);
+        lines.push(`${pad}${formatAssignmentLine(node, style)}`);
         break;
       }
       case "Update": {
@@ -618,45 +645,20 @@ export function generatePseudocode(ast: AstNode): string {
         break;
       }
       case "AssignmentExpr": {
-        const target = emitExpression(node.target, style);
         const rhs = node.children[0];
         if (isScannerInputCall(rhs)) {
-          lines.push(`${pad}${style.keyword.input} ${target}`);
+          lines.push(`${pad}${style.keyword.input} ${emitExpression(node.target, style)}`);
           break;
         }
-        const op = node.op || "=";
-        if (op === "=") {
-          lines.push(`${pad}${target} = ${formatRhs(rhs, style)}`);
-          break;
-        }
-        const opMap: Record<string, string> = {
-          "+=": "+",
-          "-=": "-",
-          "*=": "*",
-          "/=": "/",
-          "%=": "%",
-        };
-        const binOp = opMap[op];
-        const exprText = emitExpression(rhs, style);
-        lines.push(`${pad}${target} = ${target} ${pseudoOperator(binOp, style)} ${exprText}`);
+        lines.push(`${pad}${formatAssignmentLine(node, style)}`);
         break;
       }
       case "CallStatement": {
-        const outputLine = formatSystemOutCall(node.child, style);
-        if (outputLine) {
-          lines.push(`${pad}${outputLine}`);
-          break;
-        }
-        lines.push(`${pad}${emitExpression(node.child, style)}`);
+        lines.push(`${pad}${formatStatementExpression(node.child, style)}`);
         break;
       }
       case "ExpressionStatement": {
-        const outputLine = formatSystemOutCall(node.child, style);
-        if (outputLine) {
-          lines.push(`${pad}${outputLine}`);
-          break;
-        }
-        lines.push(`${pad}${emitExpression(node.child, style)}`);
+        lines.push(`${pad}${formatStatementExpression(node.child, style)}`);
         break;
       }
       case "If": {

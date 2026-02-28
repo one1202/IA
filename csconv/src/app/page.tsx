@@ -17,13 +17,11 @@ const SAMPLE_JAVA = `public class Main {
 
 /** Matching sample output to keep the UI populated before conversion. */
 const pseudoFromSample = [
-  "PROGRAM main",
-  "  DECLARE sum ← 0",
-  "  FOR i ← 0 TO 4 STEP 1",
-  "    sum ← sum + i",
-  "  END FOR",
-  "  OUTPUT sum",
-  "END PROGRAM",
+  "sum = 0",
+  "loop i from 0 to 4",
+  "    sum = sum + i",
+  "end loop",
+  "output sum",
 ].join("\n");
 
 /** Main converter page UI. */
