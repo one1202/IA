@@ -1,8 +1,13 @@
 /**
  * Structured error used across conversion stages.
  */
+export type ErrorStage = "input" | "scope" | "tokenization" | "parse";
+
+/**
+ * Structured error used across conversion stages.
+ */
 export type ConvertError = {
-  stage: string;
+  stage: ErrorStage;
   message: string;
   line: number;
   column: number;
@@ -12,7 +17,7 @@ export type ConvertError = {
  * Create a structured error for conversion stages.
  */
 export function err(
-  stage: string,
+  stage: ErrorStage,
   message: string,
   line: number = 1,
   column: number = 1

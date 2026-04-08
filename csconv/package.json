@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test --import tsx ../tests/*.test.ts"
+    "test": "node --test --import tsx ../tests/*.test.ts ../tests/unit/*.test.ts"
   },
   "dependencies": {
     "next": "16.1.3",
